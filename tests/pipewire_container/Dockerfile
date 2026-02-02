@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Install PipeWire and required dependencies
+RUN apt-get update && apt-get install -y \
+    pipewire \
+    pipewire-bin \
+    libpipewire-0.3-dev \
+    dbus \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy config
+COPY ./config/* /usr/share/pipewire/
+
+# Set up runtime directory
+ENV XDG_RUNTIME_DIR=/run/user/1000
+
+# Start PipeWire and run tests
+CMD ["bash", "-c", "pipewire"]
