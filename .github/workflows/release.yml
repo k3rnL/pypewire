@@ -17,8 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
-        target: [aarch64]
+        target: [x86_64, aarch64]
         include:
+          - target: x86_64
+            runs_on: ubuntu-latest
           - target: aarch64
             runs_on: ubuntu-24.04-arm
 
@@ -51,7 +53,6 @@ jobs:
 
   test:
     name: test (${{ matrix.target }}, Python ${{ matrix.python-version }})
-    runs-on: ${{ matrix.runs_on }}
     needs: build
     strategy:
       fail-fast: false
@@ -63,6 +64,8 @@ jobs:
             runs_on: ubuntu-latest
           - target: aarch64
             runs_on: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.runs_on }}
 
     steps:
     - uses: actions/checkout@v4
