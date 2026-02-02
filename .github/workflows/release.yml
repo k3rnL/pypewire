@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - test-ci
   workflow_dispatch:
 
 permissions:
@@ -12,15 +12,13 @@ permissions:
 jobs:
   build:
     name: build (${{ matrix.target }}, Python ${{ matrix.python-version }})
-    runs-on: ${{ matrix.runs_on }}
+    runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
-        target: [x86_64, aarch64]
+        target: [aarch64]
         include:
-          - target: x86_64
-            runs_on: ubuntu-latest
           - target: aarch64
             runs_on: ubuntu-24.04-arm
 
