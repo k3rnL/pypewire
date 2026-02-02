@@ -12,7 +12,6 @@ permissions:
 jobs:
   build:
     name: build (${{ matrix.target }}, Python ${{ matrix.python-version }})
-    runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
       matrix:
@@ -23,6 +22,8 @@ jobs:
             runs_on: ubuntu-latest
           - target: aarch64
             runs_on: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.runs_on }}
 
     steps:
     - uses: actions/checkout@v4
@@ -53,7 +54,6 @@ jobs:
 
   test:
     name: test (${{ matrix.target }}, Python ${{ matrix.python-version }})
-    runs-on: ${{ matrix.runs_on }}
     needs: build
     strategy:
       fail-fast: false
@@ -65,6 +65,8 @@ jobs:
             runs_on: ubuntu-latest
           - target: aarch64
             runs_on: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.runs_on }}
 
     steps:
     - uses: actions/checkout@v4
