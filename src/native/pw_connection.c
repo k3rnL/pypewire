@@ -2,6 +2,7 @@
 #include <Python.h>
 #include <pipewire/pipewire.h>
 #include "module_discovery.h"
+#include "device_discovery.h"
 
 static void PWConnection_dealloc(PWConnection *self) {
     if (self->core) pw_core_disconnect(self->core);
@@ -23,6 +24,7 @@ static PyObject *PWConnection_new(PyTypeObject *type, PyObject *args, PyObject *
 
 static PyMethodDef PWConnection_methods[] = {
     {"get_modules", (PyCFunction)PWConnection_get_modules, METH_NOARGS, "List modules"},
+    {"get_devices", (PyCFunction)PWConnection_get_devices, METH_NOARGS, "List devices"},
     {NULL}
 };
 

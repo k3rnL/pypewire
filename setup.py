@@ -9,7 +9,11 @@ setup(
     ext_modules=[
         Extension(
             "pypewire._core",
-            sources=["src/native/core.c", "src/native/module_discovery.c"], # Path to C file
+            sources=[
+                "src/native/pw_connection.c",
+                "src/native/module_discovery.c",
+                "src/native/device_discovery.c"
+            ], # Path to C file
             extra_compile_args=cflags,
             extra_link_args=libs
         )

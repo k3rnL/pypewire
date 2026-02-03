@@ -1,4 +1,4 @@
-#include "module_discovery.h"
+#include "device_discovery.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -18,41 +18,42 @@ struct registry_data {
     int sync_seq_2;             // Second sync (get details)
 };
 
-
-static void on_module_info(void *data, const struct pw_module_info *info) {
+static void on_device_info(void *data, const struct pw_device_info *info) {
     PyObject *d = (PyObject *)data; // We passed the Dict as user_data
 
-    if (info->args) {
-        PyDict_SetItemString(d, "args", PyUnicode_FromString(info->args));
-    }
-    if (info->filename) {
-        PyDict_SetItemString(d, "filename", PyUnicode_FromString(info->filename));
+    if (info->props) {
+        PyObject *props_dict = PyDict_New();
+        const struct spa_dict_item *item;
+        spa_dict_for_each(item, info->props) {
+            PyDict_SetItemString(props_dict, item->key, PyUnicode_FromString(item->value));
+        }
+        PyDict_SetItemString(d, "props", props_dict);
+        Py_DECREF(props_dict);
     }
 }
 
-static const struct pw_module_events module_events = {
-    .version = PW_VERSION_MODULE_EVENTS,
-    .info = on_module_info
+static const struct pw_device_events device_events = {
+    .version = PW_VERSION_DEVICE_EVENTS,
+    .info = on_device_info
 };
 
 static void on_global(void *data, uint32_t id, uint32_t permissions,
                       const char *type, uint32_t version, const struct spa_dict *props) {
     struct registry_data *rd = data;
 
-    // We only care about Modules
-    if (strcmp(type, PW_TYPE_INTERFACE_Module) == 0) {
+    // We only care about Devices
+    if (strcmp(type, PW_TYPE_INTERFACE_Device) == 0) {
         PyObject *d = PyDict_New();
 
         // Basic info from Registry
         PyDict_SetItemString(d, "id", PyLong_FromUnsignedLong(id));
-        const char *name = spa_dict_lookup(props, "module.name");
+        const char *name = spa_dict_lookup(props, PW_KEY_DEVICE_NAME);
         PyDict_SetItemString(d, "name", PyUnicode_FromString(name ? name : "unknown"));
 
-        // --- THE NEW PART ---
-        // Bind to the module to get detailed info (args)
+        // Bind to the device to get detailed info
         struct pw_proxy *proxy = pw_registry_bind(
-            pw_core_get_registry(rd->core, PW_VERSION_REGISTRY, 0), // Use cached registry if avail, or fetch new
-            id, type, PW_VERSION_MODULE, 0
+            pw_core_get_registry(rd->core, PW_VERSION_REGISTRY, 0),
+            id, type, PW_VERSION_DEVICE, 0
         );
 
         if (proxy) {
@@ -62,10 +63,9 @@ static void on_global(void *data, uint32_t id, uint32_t permissions,
             node->next = rd->proxies;
             rd->proxies = node;
 
-            // Listen to the module events, passing the Python Dict as user_data
-            pw_module_add_listener((struct pw_module*)proxy, &node->hook, &module_events, d);
+            // Listen to the device events, passing the Python Dict as user_data
+            pw_device_add_listener((struct pw_device*)proxy, &node->hook, &device_events, d);
         }
-        // --------------------
 
         PyList_Append(rd->list, d);
         Py_DECREF(d);
@@ -87,7 +87,7 @@ static void on_done(void *data, uint32_t id, int seq) {
     }
 }
 
-PyObject *PWConnection_get_modules(PWConnection *self, PyObject *Py_UNUSED(ignored)) {
+PyObject *PWConnection_get_devices(PWConnection *self, PyObject *Py_UNUSED(ignored)) {
     struct pw_registry *registry = pw_core_get_registry(self->core, PW_VERSION_REGISTRY, 0);
 
     struct registry_data rd = {
@@ -119,11 +119,10 @@ PyObject *PWConnection_get_modules(PWConnection *self, PyObject *Py_UNUSED(ignor
     // Cleanup Registry Proxy
     pw_proxy_destroy((struct pw_proxy*)registry);
 
-    // Cleanup Temporary Module Proxies
+    // Cleanup Temporary Device Proxies
     struct proxy_node *current = rd.proxies;
     while (current) {
         struct proxy_node *next = current->next;
-        // removing the hook is usually handled by destroying the proxy, but safe to be explicit if needed
         spa_hook_remove(&current->hook);
         pw_proxy_destroy(current->proxy);
         free(current);
