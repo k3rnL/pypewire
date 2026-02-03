@@ -1,15 +1,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <pipewire/pipewire.h>
-#include <stdio.h>
-
-// This struct will be managed as a Python Object
-typedef struct {
-    PyObject_HEAD
-    struct pw_main_loop *loop;
-    struct pw_context *context;
-    struct pw_core *core;
-} PWConnection;
+#include "module_discovery.h"
 
 static void PWConnection_dealloc(PWConnection *self) {
     if (self->core) pw_core_disconnect(self->core);
@@ -28,50 +20,6 @@ static PyObject *PWConnection_new(PyTypeObject *type, PyObject *args, PyObject *
     return (PyObject *)self;
 }
 
-// Internal helper for the Registry
-struct registry_data {
-    PyObject *list;
-    struct pw_main_loop *loop;
-    int sync_seq;
-};
-
-static void on_global(void *data, uint32_t id, uint32_t permissions, const char *type, uint32_t version, const struct spa_dict *props) {
-    struct registry_data *rd = data;
-    if (strcmp(type, "PipeWire:Interface:Module") == 0) {
-        PyObject *d = PyDict_New();
-        PyDict_SetItemString(d, "id", PyLong_FromUnsignedLong(id));
-        const char *name = spa_dict_lookup(props, "module.name");
-        PyDict_SetItemString(d, "name", PyUnicode_FromString(name ? name : "unknown"));
-        PyList_Append(rd->list, d);
-        Py_DECREF(d);
-    }
-}
-
-static void on_done(void *data, uint32_t id, int seq) {
-    struct registry_data *rd = data;
-    if (seq == rd->sync_seq) pw_main_loop_quit(rd->loop);
-}
-
-static PyObject *PWConnection_get_modules(PWConnection *self, PyObject *Py_UNUSED(ignored)) {
-    struct registry_data rd = { .list = PyList_New(0), .loop = self->loop };
-    struct pw_registry *registry = pw_core_get_registry(self->core, PW_VERSION_REGISTRY, 0);
-
-    struct spa_hook reg_listener, core_listener;
-    static const struct pw_registry_events reg_events = { .version = PW_VERSION_REGISTRY_EVENTS, .global = on_global };
-    static const struct pw_core_events core_events = { .version = PW_VERSION_CORE_EVENTS, .done = on_done };
-
-    pw_registry_add_listener(registry, &reg_listener, &reg_events, &rd);
-    pw_core_add_listener(self->core, &core_listener, &core_events, &rd);
-    rd.sync_seq = pw_core_sync(self->core, PW_ID_CORE, 0);
-
-    pw_main_loop_run(self->loop);
-
-    spa_hook_remove(&reg_listener);
-    spa_hook_remove(&core_listener);
-    pw_proxy_destroy((struct pw_proxy*)registry);
-
-    return rd.list;
-}
 
 static PyMethodDef PWConnection_methods[] = {
     {"get_modules", (PyCFunction)PWConnection_get_modules, METH_NOARGS, "List modules"},
