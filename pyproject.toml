@@ -9,12 +9,14 @@ description = "Python wrapper for PipeWire"
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [{name = "Daniel Erwan", email = "contact@erwandaniel.fr"}]
-license = {text = "MIT"}
+license = "MIT"
+license-files = [
+    "LICENSE"
+]
 keywords = ["pipewire", "audio", "video", "multimedia"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
