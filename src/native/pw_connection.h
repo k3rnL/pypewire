@@ -7,9 +7,11 @@
 // This struct will be managed as a Python Object
 typedef struct {
     PyObject_HEAD
-    struct pw_main_loop *loop;
+    PyObject *name;
+    struct pw_thread_loop *thread_loop;
     struct pw_context *context;
     struct pw_core *core;
+    struct pw_registry *registry;
 } PWConnection;
 
 #endif

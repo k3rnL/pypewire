@@ -11,6 +11,7 @@ setup(
             "pypewire._core",
             sources=[
                 "src/native/pw_connection.c",
+                "src/native/pw_module.c",
                 "src/native/module_discovery.c",
                 "src/native/device_discovery.c"
             ], # Path to C file

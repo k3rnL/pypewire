@@ -1,4 +1,5 @@
 #include "module_discovery.h"
+#include "pw_module.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -11,23 +12,22 @@ struct proxy_node {
 
 struct registry_data {
     PyObject *list;
-    struct pw_main_loop *loop;
-    struct pw_core *core;
-    struct proxy_node *proxies; // Linked list of proxies to clean up
-    int sync_seq_1;             // First sync (get globals)
-    int sync_seq_2;             // Second sync (get details)
+    struct pw_thread_loop *thread_loop;
+    struct pw_core *core;      // Added: Needed for pw_registry_bind
+    PWConnection *self;        // Added: Needed to set mod_obj->parent
+    int sync_seq;
+    bool is_done;
 };
 
-
 static void on_module_info(void *data, const struct pw_module_info *info) {
-    PyObject *d = (PyObject *)data; // We passed the Dict as user_data
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    PWModule *self = (PWModule *)data;
 
-    if (info->args) {
-        PyDict_SetItemString(d, "args", PyUnicode_FromString(info->args));
-    }
-    if (info->filename) {
-        PyDict_SetItemString(d, "filename", PyUnicode_FromString(info->filename));
-    }
+    // Update the Python object with the details from info
+    Py_XDECREF(self->args);
+    // spa_dict_lookup(info->props, "module.args") is also an option if info->args is null
+    self->args = PyUnicode_FromString(info->args ? info->args : "");
+    PyGILState_Release(gstate);
 }
 
 static const struct pw_module_events module_events = {
@@ -39,96 +39,90 @@ static void on_global(void *data, uint32_t id, uint32_t permissions,
                       const char *type, uint32_t version, const struct spa_dict *props) {
     struct registry_data *rd = data;
 
-    // We only care about Modules
     if (strcmp(type, PW_TYPE_INTERFACE_Module) == 0) {
-        PyObject *d = PyDict_New();
+        PyGILState_STATE gstate = PyGILState_Ensure();
+        PWModule *mod_obj = (PWModule *)PyObject_CallNoArgs((PyObject *)&PWModuleType);
+        if (mod_obj == NULL) {
+            PyErr_Print();   // <-- show the real exception (if any)
+            PyGILState_Release(gstate);
+            return;
+        }
+        mod_obj->id = id;
+        mod_obj->parent = (PyObject *)rd->self;
+        Py_INCREF(mod_obj->parent);
 
-        // Basic info from Registry
-        PyDict_SetItemString(d, "id", PyLong_FromUnsignedLong(id));
         const char *name = spa_dict_lookup(props, "module.name");
-        PyDict_SetItemString(d, "name", PyUnicode_FromString(name ? name : "unknown"));
+        mod_obj->name = PyUnicode_FromString(name ? name : "unknown");
+        mod_obj->args = Py_None;
+        Py_INCREF(Py_None);
 
-        // --- THE NEW PART ---
-        // Bind to the module to get detailed info (args)
-        struct pw_proxy *proxy = pw_registry_bind(
-            pw_core_get_registry(rd->core, PW_VERSION_REGISTRY, 0), // Use cached registry if avail, or fetch new
+        // 2. Bind the proxy
+        // Use rd->core which we passed from the main function
+        mod_obj->proxy = (struct pw_module*)pw_registry_bind(
+            rd->self->registry,
             id, type, PW_VERSION_MODULE, 0
         );
 
-        if (proxy) {
-            // Create a node to track this proxy
-            struct proxy_node *node = malloc(sizeof(struct proxy_node));
-            node->proxy = proxy;
-            node->next = rd->proxies;
-            rd->proxies = node;
-
-            // Listen to the module events, passing the Python Dict as user_data
-            pw_module_add_listener((struct pw_module*)proxy, &node->hook, &module_events, d);
+        if (mod_obj->proxy) {
+            // 3. Listen for the 'info' event to get args
+            pw_module_add_listener(mod_obj->proxy, &mod_obj->listener, &module_events, mod_obj);
         }
-        // --------------------
 
-        PyList_Append(rd->list, d);
-        Py_DECREF(d);
+        PyList_Append(rd->list, (PyObject *)mod_obj);
+        Py_DECREF(mod_obj);
+        PyGILState_Release(gstate);
     }
 }
 
 static void on_done(void *data, uint32_t id, int seq) {
     struct registry_data *rd = data;
-
-    // Sync 1 Complete: We have received all Global events.
-    // Now we must trigger Sync 2 to allow the "bind" requests we just made
-    // to go to the server and come back with "info".
-    if (seq == rd->sync_seq_1) {
-        rd->sync_seq_2 = pw_core_sync(rd->core, PW_ID_CORE, 0);
-    }
-    // Sync 2 Complete: We have received all Info events.
-    else if (seq == rd->sync_seq_2) {
-        pw_main_loop_quit(rd->loop);
+    if (seq == rd->sync_seq) {
+        rd->is_done = true;
+        pw_thread_loop_signal(rd->thread_loop, false);
     }
 }
 
 PyObject *PWConnection_get_modules(PWConnection *self, PyObject *Py_UNUSED(ignored)) {
-    struct pw_registry *registry = pw_core_get_registry(self->core, PW_VERSION_REGISTRY, 0);
-
     struct registry_data rd = {
         .list = PyList_New(0),
-        .loop = self->loop,
+        .thread_loop = self->thread_loop,
         .core = self->core,
-        .proxies = NULL,
-        .sync_seq_1 = 0,
-        .sync_seq_2 = -1
+        .self = self,
+        .is_done = false
     };
+
+    Py_BEGIN_ALLOW_THREADS
+    pw_thread_loop_lock(rd.thread_loop);
 
     struct spa_hook reg_listener, core_listener;
     static const struct pw_registry_events reg_events = { .version = PW_VERSION_REGISTRY_EVENTS, .global = on_global };
     static const struct pw_core_events core_events = { .version = PW_VERSION_CORE_EVENTS, .done = on_done };
 
-    pw_registry_add_listener(registry, &reg_listener, &reg_events, &rd);
+    pw_registry_add_listener(self->registry, &reg_listener, &reg_events, &rd);
     pw_core_add_listener(self->core, &core_listener, &core_events, &rd);
 
     // Trigger First Sync
-    rd.sync_seq_1 = pw_core_sync(self->core, PW_ID_CORE, 0);
+    rd.sync_seq = pw_core_sync(self->core, PW_ID_CORE, 0);
 
-    // Run Loop (Will process Globals -> Sync 1 -> Info events -> Sync 2 -> Quit)
-    pw_main_loop_run(self->loop);
+    while (!rd.is_done) {
+        pw_thread_loop_wait(rd.thread_loop);
+    }
+
+    // Trigger Second Sync to get modules infos
+    rd.is_done = false;
+    rd.sync_seq = pw_core_sync(self->core, PW_ID_CORE, 0);
+
+    while (!rd.is_done) {
+        pw_thread_loop_wait(rd.thread_loop);
+    }
 
     // Cleanup Hooks
     spa_hook_remove(&reg_listener);
     spa_hook_remove(&core_listener);
 
-    // Cleanup Registry Proxy
-    pw_proxy_destroy((struct pw_proxy*)registry);
+    pw_thread_loop_unlock(rd.thread_loop);
 
-    // Cleanup Temporary Module Proxies
-    struct proxy_node *current = rd.proxies;
-    while (current) {
-        struct proxy_node *next = current->next;
-        // removing the hook is usually handled by destroying the proxy, but safe to be explicit if needed
-        spa_hook_remove(&current->hook);
-        pw_proxy_destroy(current->proxy);
-        free(current);
-        current = next;
-    }
+    Py_END_ALLOW_THREADS
 
     return rd.list;
 }

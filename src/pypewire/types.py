@@ -1,5 +1,5 @@
 from typing import TypedDict
 
-class PWModule(TypedDict):
+class PWModuleOld(TypedDict):
     id: int
     name: str

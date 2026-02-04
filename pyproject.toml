@@ -35,7 +35,7 @@ Repository = "https://github.com/k3rnL/pypewire"
 Issues = "https://github.com/k3rnL/pypewire/issues"
 
 [tool.uv]
-cache-keys = [{ file = "pyproject.toml" }, { file = "setup.py" }, { file = "setup.cfg" }, { file = "**.c" }]
+cache-keys = [{ file = "pyproject.toml" }, { file = "setup.py" }, { file = "setup.cfg" }, { file = "**.c" }, { file = "**.h" }]
 
 [tool.setuptools.packages.find]
 where = ["src"]
