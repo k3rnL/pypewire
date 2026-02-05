@@ -27,7 +27,9 @@ setup(
         Extension(
             "wyreplumber._core",
             sources=[
-                "native/wyreplumber/wyreplumber.c"
+                "native/wyreplumber/wyreplumber.c",
+                "native/wyreplumber/wp_connection/wp_connection.c",
+                "native/wyreplumber/wp_connection/get_nodes.c",
             ],
             extra_compile_args=cflags,
             extra_link_args=libs

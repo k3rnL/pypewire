@@ -4,7 +4,6 @@
 #include <Python.h>
 #include <pipewire/pipewire.h>
 
-// This struct will be managed as a Python Object
 typedef struct {
     PyObject_HEAD
     PyObject *name;
