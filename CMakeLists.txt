@@ -32,7 +32,8 @@ add_library(wyreplumber_core MODULE
         native/wyreplumber/wyreplumber.c
         native/wyreplumber/wp_connection/wp_connection.c
         native/wyreplumber/wp_connection/wp_connection.h
-        native/wyreplumber/wp_connection/get_nodes.c)
+        native/wyreplumber/wp_connection/get_nodes.c
+        native/wyreplumber/wp_node/wp_node.c)
 
 
 target_include_directories(pypewire_core PRIVATE

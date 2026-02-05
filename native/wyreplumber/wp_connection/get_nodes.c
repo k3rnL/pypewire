@@ -2,9 +2,8 @@
 // Created by edaniel on 2/5/26.
 //
 
-#include <pipewire/keys.h>
-
 #include "wp_connection.h"
+#include "../wp_node/wp_node.h"
 
 typedef struct {
     WPConnection *conn;
@@ -20,8 +19,8 @@ static gboolean do_get_nodes_on_wp_thread(gpointer user_data) {
     g_autoptr(WpIterator) it = wp_object_manager_new_iterator(conn->om);
     g_auto(GValue) val = G_VALUE_INIT;
 
-    // Create Python list (must acquire GIL since we're creating Python objects)
-    PyGILState_STATE gstate = PyGILState_Ensure();
+    // Create the Python list (must acquire GIL since we're creating Python objects)
+    const PyGILState_STATE gstate = PyGILState_Ensure();
 
     PyObject *list = PyList_New(0);
     if (!list) {
@@ -39,43 +38,24 @@ static gboolean do_get_nodes_on_wp_thread(gpointer user_data) {
         }
 
         // Check if the object has the required features
-        WpObjectFeatures features = wp_object_get_active_features(WP_OBJECT(node));
+        const WpObjectFeatures features = wp_object_get_active_features(WP_OBJECT(node));
         if (!(features & WP_PROXY_FEATURE_BOUND) || !(features & WP_PIPEWIRE_OBJECT_FEATURE_INFO)) {
             // Skip nodes that don't have features activated yet
             g_value_unset(&val);
             continue;
         }
 
-        // Get node properties - now safe to access
-        guint32 id = wp_proxy_get_bound_id(WP_PROXY(node));
-        WpProperties *props = wp_pipewire_object_get_properties(WP_PIPEWIRE_OBJECT(node));
-
-        const char *name = props ? wp_properties_get(props, PW_KEY_NODE_NAME) : NULL;
-        const char *nick = props ? wp_properties_get(props, PW_KEY_NODE_NICK) : NULL;
-        const char *description = props ? wp_properties_get(props, PW_KEY_NODE_DESCRIPTION) : NULL;
-        const char *media_class = props ? wp_properties_get(props, PW_KEY_MEDIA_CLASS) : NULL;
-
-        // Create dict for this node
-        PyObject *node_dict = PyDict_New();
-        if (!node_dict) {
+        // Create WPNode Python object
+        PyObject *py_node = WPNode_from_wp_node(node, conn->core);
+        if (!py_node) {
             g_value_unset(&val);
             Py_DECREF(list);
             list = NULL;
             break;
         }
 
-        PyDict_SetItemString(node_dict, "id", PyLong_FromLong(id));
-        if (name)
-            PyDict_SetItemString(node_dict, "name", PyUnicode_FromString(name));
-        if (nick)
-            PyDict_SetItemString(node_dict, "nick", PyUnicode_FromString(nick));
-        if (description)
-            PyDict_SetItemString(node_dict, "description", PyUnicode_FromString(description));
-        if (media_class)
-            PyDict_SetItemString(node_dict, "media_class", PyUnicode_FromString(media_class));
-
-        PyList_Append(list, node_dict);
-        Py_DECREF(node_dict);
+        PyList_Append(list, py_node);
+        Py_DECREF(py_node);
 
         g_value_unset(&val);
     }

@@ -30,6 +30,7 @@ setup(
                 "native/wyreplumber/wyreplumber.c",
                 "native/wyreplumber/wp_connection/wp_connection.c",
                 "native/wyreplumber/wp_connection/get_nodes.c",
+                "native/wyreplumber/wp_node/wp_node.c",
             ],
             extra_compile_args=cflags,
             extra_link_args=libs
