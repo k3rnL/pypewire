@@ -21,6 +21,12 @@ setup(
                 "native/pypewire/pw_module.c",
                 "native/pypewire/pypewire.c"
             ],
+            include_dirs=[
+                "native/pypewire",
+                "native/pypewire/pw_connection",
+                "native/pypewire/pw_factory",
+                "native/pypewire/pw_node",
+            ],
             extra_compile_args=cflags,
             extra_link_args=libs
         ),
@@ -31,6 +37,11 @@ setup(
                 "native/wyreplumber/wp_connection/wp_connection.c",
                 "native/wyreplumber/wp_connection/get_nodes.c",
                 "native/wyreplumber/wp_node/wp_node.c",
+            ],
+            include_dirs=[
+                "native/wyreplumber",
+                "native/wyreplumber/wp_connection",
+                "native/wyreplumber/wp_node",
             ],
             extra_compile_args=cflags,
             extra_link_args=libs
