@@ -21,8 +21,10 @@ static void on_core_connected(WpCore *core, GParamSpec *pspec, gpointer user_dat
 
     c->om = wp_object_manager_new();
 
-    // interested in Nodes
+    // interested in Nodes with required features
     wp_object_manager_add_interest(c->om, WP_TYPE_NODE, NULL);
+    wp_object_manager_request_object_features(c->om, WP_TYPE_NODE,
+        WP_PROXY_FEATURE_BOUND | WP_PIPEWIRE_OBJECT_FEATURE_INFO);
 
     g_signal_connect(c->om, "installed", G_CALLBACK(on_om_installed), c);
 

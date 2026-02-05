@@ -38,14 +38,22 @@ static gboolean do_get_nodes_on_wp_thread(gpointer user_data) {
             continue;
         }
 
-        // Get node properties
-        guint32 id = wp_proxy_get_bound_id(WP_PROXY(node));
-        g_autoptr(WpProperties) props = wp_pipewire_object_get_properties(WP_PIPEWIRE_OBJECT(node));
+        // Check if the object has the required features
+        WpObjectFeatures features = wp_object_get_active_features(WP_OBJECT(node));
+        if (!(features & WP_PROXY_FEATURE_BOUND) || !(features & WP_PIPEWIRE_OBJECT_FEATURE_INFO)) {
+            // Skip nodes that don't have features activated yet
+            g_value_unset(&val);
+            continue;
+        }
 
-        const char *name = wp_properties_get(props, PW_KEY_NODE_NAME);
-        const char *nick = wp_properties_get(props, PW_KEY_NODE_NICK);
-        const char *description = wp_properties_get(props, PW_KEY_NODE_DESCRIPTION);
-        const char *media_class = wp_properties_get(props, PW_KEY_MEDIA_CLASS);
+        // Get node properties - now safe to access
+        guint32 id = wp_proxy_get_bound_id(WP_PROXY(node));
+        WpProperties *props = wp_pipewire_object_get_properties(WP_PIPEWIRE_OBJECT(node));
+
+        const char *name = props ? wp_properties_get(props, PW_KEY_NODE_NAME) : NULL;
+        const char *nick = props ? wp_properties_get(props, PW_KEY_NODE_NICK) : NULL;
+        const char *description = props ? wp_properties_get(props, PW_KEY_NODE_DESCRIPTION) : NULL;
+        const char *media_class = props ? wp_properties_get(props, PW_KEY_MEDIA_CLASS) : NULL;
 
         // Create dict for this node
         PyObject *node_dict = PyDict_New();
