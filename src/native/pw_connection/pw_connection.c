@@ -1,17 +1,15 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <pipewire/pipewire.h>
-#include "module_discovery.h"
-#include "device_discovery.h"
 #include "pw_connection.h"
-#include "pw_module.h"
+#include "../pw_module.h"
 
 static void PWConnection_dealloc(PWConnection *self) {
     Py_XDECREF(self->name);
 
     if (self->registry) {
         pw_thread_loop_lock(self->thread_loop);
-        pw_proxy_destroy(self->registry);
+        pw_proxy_destroy((struct pw_proxy *) self->registry);
         pw_thread_loop_unlock(self->thread_loop);
         self->registry = NULL;
     }
@@ -129,7 +127,7 @@ static int PWConnection_init(PWConnection *self, PyObject *args, PyObject *kwds)
 fail:
     /* Clean up partially constructed native state */
     if (self->registry) {
-        pw_proxy_destroy(self->registry);
+        pw_proxy_destroy((struct pw_proxy *) self->registry);
         self->registry = NULL;
     }
     if (self->core) {
@@ -158,18 +156,21 @@ static PyMemberDef Custom_members[] = {
 };
 
 static PyMethodDef PWConnection_methods[] = {
+    {"create_object", (PyCFunction)PWConnection_create_object, METH_VARARGS | METH_KEYWORDS, "Create an object"},
     {"get_modules", (PyCFunction)PWConnection_get_modules, METH_NOARGS, "List modules"},
     {"get_devices", (PyCFunction)PWConnection_get_devices, METH_NOARGS, "List devices"},
+    {"get_factories", (PyCFunction)PWConnection_get_factories, METH_NOARGS, "List factories"},
+    {"get_nodes", (PyCFunction)PWConnection_get_nodes, METH_NOARGS, "List nodes"},
     {NULL}
 };
 
-static PyTypeObject PWConnectionType = {
+PyTypeObject PWConnectionType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "_core.PWConnection",
     .tp_doc = "PipeWire Connection Object",
     .tp_basicsize = sizeof(PWConnection),
     .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_repr = (reprfunc)PWConnection_repr,
     .tp_new = PWConnection_new,
     .tp_init = (initproc) PWConnection_init,
@@ -177,20 +178,3 @@ static PyTypeObject PWConnectionType = {
     .tp_methods = PWConnection_methods,
     .tp_members = Custom_members
 };
-
-static struct PyModuleDef module = { PyModuleDef_HEAD_INIT, "_core", NULL, -1, NULL };
-
-PyMODINIT_FUNC PyInit__core(void) {
-    pw_init(NULL, NULL);
-
-    PyObject *m = PyModule_Create(&module);
-
-    if (PyType_Ready(&PWConnectionType) < 0) return NULL;
-    Py_INCREF(&PWConnectionType);
-    PyModule_AddObject(m, "PWConnection", (PyObject *)&PWConnectionType);
-
-    if (PyType_Ready(&PWModuleType) < 0) return NULL;
-    Py_INCREF(&PWModuleType);
-    PyModule_AddObject(m, "PWModule", (PyObject *)&PWModuleType);
-    return m;
-}

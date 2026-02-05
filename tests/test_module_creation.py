@@ -1,11 +1,11 @@
 import pytest
-from pypewire.client import PipeWireClient
+from pypewire.client import PWClient
 
 
 def test_create_module():
     return
     """Test creating a PipeWire module."""
-    with PipeWireClient() as client:
+    with PWClient() as client:
         # First get current modules to establish baseline
         modules_before = client.get_modules()
         initial_count = len(modules_before)
@@ -29,7 +29,7 @@ def test_create_module():
 def test_create_module_not_connected():
     return
     """Test that creating a module fails when not connected."""
-    client = PipeWireClient()
+    client = PWClient()
 
     if not hasattr(client, 'load_module'):
         pytest.skip("load_module not implemented")

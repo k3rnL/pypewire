@@ -1,5 +1,5 @@
-#include "module_discovery.h"
-#include "pw_module.h"
+#include "pw_connection.h"
+#include "../pw_module.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,12 +20,11 @@ struct registry_data {
 };
 
 static void on_module_info(void *data, const struct pw_module_info *info) {
-    PyGILState_STATE gstate = PyGILState_Ensure();
-    PWModule *self = (PWModule *)data;
+    const PyGILState_STATE gstate = PyGILState_Ensure();
+    PWModule *self = data;
 
     // Update the Python object with the details from info
     Py_XDECREF(self->args);
-    // spa_dict_lookup(info->props, "module.args") is also an option if info->args is null
     self->args = PyUnicode_FromString(info->args ? info->args : "");
     PyGILState_Release(gstate);
 }
@@ -94,11 +93,17 @@ PyObject *PWConnection_get_modules(PWConnection *self, PyObject *Py_UNUSED(ignor
     Py_BEGIN_ALLOW_THREADS
     pw_thread_loop_lock(rd.thread_loop);
 
+    const struct pw_registry *registry = pw_core_get_registry(self->core, PW_VERSION_REGISTRY, 0);
+    if (registry < 0) {
+        PyErr_SetString(PyExc_RuntimeError, "pw_core_get_registry failed");
+        return NULL;
+    }
+
     struct spa_hook reg_listener, core_listener;
     static const struct pw_registry_events reg_events = { .version = PW_VERSION_REGISTRY_EVENTS, .global = on_global };
     static const struct pw_core_events core_events = { .version = PW_VERSION_CORE_EVENTS, .done = on_done };
 
-    pw_registry_add_listener(self->registry, &reg_listener, &reg_events, &rd);
+    pw_registry_add_listener(registry, &reg_listener, &reg_events, &rd);
     pw_core_add_listener(self->core, &core_listener, &core_events, &rd);
 
     // Trigger First Sync
@@ -119,6 +124,8 @@ PyObject *PWConnection_get_modules(PWConnection *self, PyObject *Py_UNUSED(ignor
     // Cleanup Hooks
     spa_hook_remove(&reg_listener);
     spa_hook_remove(&core_listener);
+
+    pw_proxy_destroy((struct pw_proxy *) registry);
 
     pw_thread_loop_unlock(rd.thread_loop);
 

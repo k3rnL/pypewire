@@ -1,12 +1,12 @@
 from time import sleep
 
 import pytest
-from pypewire.client import PipeWireClient
+from pypewire.client import PWClient
 
 
 def test_list_modules(pipewire_socket):
     """Test listing PipeWire modules."""
-    with PipeWireClient() as client:
+    with PWClient() as client:
         modules = client.get_modules()
 
         # Validate the result
@@ -26,7 +26,7 @@ def test_list_modules(pipewire_socket):
 
 def test_list_modules_not_connected(pipewire_socket):
     """Test that listing modules fails when not connected."""
-    client = PipeWireClient()
+    client = PWClient()
 
     with pytest.raises(RuntimeError, match="Not connected"):
         client.get_modules()
@@ -34,12 +34,12 @@ def test_list_modules_not_connected(pipewire_socket):
 
 def test_context_manager(pipewire_socket):
     """Test that the context manager properly connects and disconnects."""
-    client = PipeWireClient()
-    assert client._conn is None, "Should not be connected initially"
+    client = PWClient()
+    assert client.connection is None, "Should not be connected initially"
 
     with client:
-        assert client._conn is not None, "Should be connected inside context"
+        assert client.connection is not None, "Should be connected inside context"
         modules = client.get_modules()
         assert isinstance(modules, list), "Should get modules list"
 
-    assert client._conn is None, "Should be disconnected after context"
+    assert client.connection is None, "Should be disconnected after context"

@@ -1,5 +1,5 @@
 #include "pw_module.h"
-#include "pw_connection.h"
+#include "pw_connection/pw_connection.h"
 
 PyObject *PWModule_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     PWModule *self = (PWModule *)type->tp_alloc(type, 0);

@@ -1,4 +1,4 @@
-#include "device_discovery.h"
+#include "pw_connection.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -89,13 +89,12 @@ PyObject *PWConnection_get_devices(PWConnection *self, PyObject *Py_UNUSED(ignor
     // 1. LOCK
     pw_thread_loop_lock(self->thread_loop);
 
-    struct pw_registry *registry = pw_core_get_registry(self->core, PW_VERSION_REGISTRY, 0);
     struct spa_hook reg_listener, core_listener;
 
     static const struct pw_registry_events reg_events = { .version = PW_VERSION_REGISTRY_EVENTS, .global = on_global };
     static const struct pw_core_events core_events = { .version = PW_VERSION_CORE_EVENTS, .done = on_done };
 
-    pw_registry_add_listener(registry, &reg_listener, &reg_events, &rd);
+    pw_registry_add_listener(self->registry, &reg_listener, &reg_events, &rd);
     pw_core_add_listener(self->core, &core_listener, &core_events, &rd);
 
     rd.sync_seq = pw_core_sync(self->core, PW_ID_CORE, 0);
@@ -108,7 +107,6 @@ PyObject *PWConnection_get_devices(PWConnection *self, PyObject *Py_UNUSED(ignor
     // 3. CLEANUP (While still locked)
     spa_hook_remove(&reg_listener);
     spa_hook_remove(&core_listener);
-    pw_proxy_destroy((struct pw_proxy*)registry);
 
     // Clean up all the temporary device proxies we bound to
     struct proxy_node *current = rd.proxies;
