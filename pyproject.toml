@@ -7,7 +7,7 @@ name = "pypewire"
 version = "0.2.0"
 description = "Python wrapper for PipeWire"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 authors = [{name = "Daniel Erwan", email = "contact@erwandaniel.fr"}]
 license = "MIT"
 license-files = [
