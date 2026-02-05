@@ -2,25 +2,33 @@ from setuptools import setup, Extension
 import subprocess
 
 # Detect PipeWire
-cflags = subprocess.check_output(["pkg-config", "--cflags", "libpipewire-0.3"], text=True).split()
-libs = subprocess.check_output(["pkg-config", "--libs", "libpipewire-0.3"], text=True).split()
+cflags = subprocess.check_output(["pkg-config", "--cflags", "libpipewire-0.3", "libwireplumber-0.4"], text=True).split()
+libs = subprocess.check_output(["pkg-config", "--libs", "libpipewire-0.3" "libwireplumber-0.4"], text=True).split()
 
 setup(
     ext_modules=[
         Extension(
             "pypewire._core",
             sources=[
-                "src/native/pw_connection/pw_connection.c",
-                "src/native/pw_connection/get_factories.c",
-                "src/native/pw_connection/get_modules.c",
-                "src/native/pw_connection/get_devices.c",
-                "src/native/pw_connection/get_nodes.c",
-                "src/native/pw_connection/create_object.c",
-                "src/native/pw_factory/pw_factory.c",
-                "src/native/pw_node/pw_node.c",
-                "src/native/pw_module.c",
-                "src/native/core.c"
-            ], # Path to C file
+                "native/pypewire/pw_connection/pw_connection.c",
+                "native/pypewire/pw_connection/get_factories.c",
+                "native/pypewire/pw_connection/get_modules.c",
+                "native/pypewire/pw_connection/get_devices.c",
+                "native/pypewire/pw_connection/get_nodes.c",
+                "native/pypewire/pw_connection/create_object.c",
+                "native/pypewire/pw_factory/pw_factory.c",
+                "native/pypewire/pw_node/pw_node.c",
+                "native/pypewire/pw_module.c",
+                "native/pypewire/pypewire.c"
+            ],
+            extra_compile_args=cflags,
+            extra_link_args=libs
+        ),
+        Extension(
+            "wyreplumber._core",
+            sources=[
+                "src/native/wyreplumber.c"
+            ],
             extra_compile_args=cflags,
             extra_link_args=libs
         )

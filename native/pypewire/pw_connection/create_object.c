@@ -11,12 +11,14 @@ typedef struct {
 
 static void on_proxy_bound(void *data, uint32_t global_id)
 {
+    printf("proxy bound id=%u\n", global_id);
     create_state *st = (create_state *)data;
     st->bound_id = global_id;
 }
 
 static void on_proxy_done(void *data, int seq)
 {
+    printf("proxy done\n");
     create_state *st = (create_state *)data;
     if (seq == st->seq) {
         st->done = true;
@@ -27,6 +29,7 @@ static void on_proxy_done(void *data, int seq)
 
 static void on_proxy_error(void *data, int seq, int res, const char *message)
 {
+    printf("proxy error: %d (%s)\n", res, message);
     create_state *st = (create_state *)data;
     (void)seq;
     st->err_res = res;
@@ -70,8 +73,6 @@ PyObject *PWConnection_create_object(PWConnection *self, PyObject *args, PyObjec
     if (!p) {
         return PyErr_NoMemory();
     }
-
-    printf("Hello!\n");
 
     if (props_obj != Py_None) {
         if (!PyDict_Check(props_obj)) {
@@ -189,7 +190,7 @@ PyObject *PWConnection_create_object(PWConnection *self, PyObject *args, PyObjec
 
     // Not implemented yet: destroy to avoid leaking
     pw_thread_loop_lock(self->thread_loop);
-    pw_proxy_destroy(proxy);
+    // pw_proxy_destroy(proxy);
     pw_thread_loop_unlock(self->thread_loop);
 
     Py_RETURN_NONE;

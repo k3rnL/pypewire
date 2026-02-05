@@ -35,8 +35,9 @@ class PWClient:
             {
                 # example: wrap some SPA factory
                 "factory.name": "support.null-audio-sink",  # or whatever you need
-                "node.name": "my-sink2",
-                # "media.class": "Audio/Sink",
+                "node.name": "my-sink3",
+                "priority.session": 0,
+                "media.class": "Audio/Sink",
                 # adapter-specific / node props as needed...
             }
         )
