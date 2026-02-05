@@ -2,8 +2,8 @@ from setuptools import setup, Extension
 import subprocess
 
 # Detect PipeWire
-cflags = subprocess.check_output(["pkg-config", "--cflags", "libpipewire-0.3", "libwireplumber-0.4"], text=True).split()
-libs = subprocess.check_output(["pkg-config", "--libs", "libpipewire-0.3" "libwireplumber-0.4"], text=True).split()
+cflags = subprocess.check_output(["pkg-config", "--cflags", "libpipewire-0.3", "wireplumber-0.4"], text=True).split()
+libs = subprocess.check_output(["pkg-config", "--libs", "libpipewire-0.3", "wireplumber-0.4"], text=True).split()
 
 setup(
     ext_modules=[
@@ -27,7 +27,7 @@ setup(
         Extension(
             "wyreplumber._core",
             sources=[
-                "src/native/wyreplumber.c"
+                "native/wyreplumber/wyreplumber.c"
             ],
             extra_compile_args=cflags,
             extra_link_args=libs

@@ -5,7 +5,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Install PipeWire and required dependencies
 RUN apt-get update && apt-get install -y \
-    pipewire \
+    pipewire wireplumber \
     pipewire-bin \
     libpipewire-0.3-dev \
     dbus \
