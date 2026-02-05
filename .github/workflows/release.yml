@@ -36,7 +36,7 @@ jobs:
     - name: Install PipeWire dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libpipewire-0.3-dev pipewire pkg-config
+        sudo apt-get install -y libpipewire-0.3-dev libwireplumber-0.4-dev pipewire pkg-config
 
     - name: Install build dependencies
       run: |
@@ -79,7 +79,7 @@ jobs:
     - name: Install PipeWire dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libpipewire-0.3-dev pipewire pkg-config
+        sudo apt-get install -y libpipewire-0.3-dev libwireplumber-0.4-dev pipewire pkg-config
 
     - name: Download artifacts
       uses: actions/download-artifact@v4
